@@ -3,8 +3,11 @@ package com.eldorado.microservice.user.service;
 import com.eldorado.microservice.user.domain.UserEntity;
 import com.eldorado.microservice.user.dto.MessageDto;
 import com.eldorado.microservice.user.dto.UserDto;
+import com.eldorado.microservice.user.publisher.UserPublisher;
 import com.eldorado.microservice.user.repository.UserRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.modelmapper.ModelMapper;
@@ -25,6 +28,9 @@ public class UserService {
     private final String MESSAGE = "Cadastro realizado\nUsuario: %s\nSenha: %s";
 
     private final String SUBJECT = "NÃO RESPONDA";
+
+    private final ObjectMapper objectMapper;
+    private final UserPublisher userPublisher;
     public UserDto createUser(@Validated UserDto userDto){
         var userEntity = modelMapper.map(userDto, UserEntity.class);
 
@@ -38,9 +44,10 @@ public class UserService {
         log.info("User Saved with sucess {}",userEntity);
 
         sendMessage(userDto,password);
-        return null;
+        return userDto;
     }
 
+    @SneakyThrows
     private void sendMessage(UserDto userDto, String password){
         var message = MessageDto
                 .builder()
@@ -49,6 +56,7 @@ public class UserService {
                 .subject(SUBJECT)
                 .build();
 
+        userPublisher.sendToQueue(objectMapper.writeValueAsString(message));
         log.info("Message to queue {}", message);
     }
 
